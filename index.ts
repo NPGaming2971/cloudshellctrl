@@ -1,7 +1,7 @@
 import { connect, type Page } from "puppeteer-real-browser";
 import PuppeteerStealthPlugin from "puppeteer-extra-plugin-stealth";
 import { getIsolatedBrowserPath } from "./utils.js";
-import { ChromeFlags } from "./constants.js";
+import { ChromeFlags, UserAgent } from "./constants.js";
 
 async function main() {
 	const browserPath = await getIsolatedBrowserPath();
@@ -18,6 +18,7 @@ async function main() {
 		plugins: [PuppeteerStealthPlugin()],
 	});
 
+	await page.setUserAgent(UserAgent);
 	await page.goto("https://shell.cloud.google.com", { waitUntil: "domcontentloaded" });
 }
 
