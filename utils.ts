@@ -1,9 +1,8 @@
 import { Browser, getInstalledBrowsers, install } from "@puppeteer/browsers";
 import * as path from "node:path";
 
-//@ts-expect-error
-async function getIsolatedBrowserPath(version?: string) {
-	const DefaultVersion = "114.0.5735.133";
+export async function getIsolatedBrowserPath(version?: string) {
+	const DefaultVersion = "128.0.6613.118";
 	const installedBrowsers = await getInstalledBrowsers({ cacheDir: path.resolve(".") });
 	if (!installedBrowsers.length) {
 		const installed = await install({
