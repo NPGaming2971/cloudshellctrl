@@ -1,17 +1,17 @@
 declare module "puppeteer-real-browser" {
-	import type { Browser, Page } from "puppeteer-core-patch";
+	import type { Browser, Page as IPage } from "puppeteer-core-patch";
 	import type { GhostCursor } from "ghost-cursor";
 
 	export function connect(options: Options): Promise<ConnectResult>;
 
-	interface PageWithCursor extends Page {
+	export interface Page extends IPage {
 		realClick: GhostCursor["click"];
 		realCursor: GhostCursor;
 	}
 
 	type ConnectResult = {
 		browser: Browser;
-		page: PageWithCursor;
+		page: Page;
 	};
 
 	interface Options {
