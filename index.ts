@@ -1,4 +1,4 @@
-import { connect, type PageWithCursor } from "puppeteer-real-browser";
+import { connect, type Page } from "puppeteer-real-browser";
 import PuppeteerStealthPlugin from "puppeteer-extra-plugin-stealth";
 import { getIsolatedBrowserPath } from "./utils.js";
 import { ChromeFlags } from "./constants.js";
@@ -21,7 +21,7 @@ async function main() {
 	await page.goto("https://shell.cloud.google.com", { waitUntil: "domcontentloaded" });
 }
 
-async function loginToGoogle(page: PageWithCursor, email: string, password: string) {
+async function loginToGoogle(page: Page, email: string, password: string) {
 	const EmailInputSelector = 'input[type="email"]';
 	const EmailNextSelector = "#identifierNext";
 	const PasswordInputSelector = `input[type="password"]`;
@@ -42,6 +42,34 @@ async function loginToGoogle(page: PageWithCursor, email: string, password: stri
 	await page.realClick(PasswordNextSelector);
 
 	await page.waitForNavigation();
+}
+
+/**
+ * Return true if the terminal is visible, false otherwise.
+ */
+async function checkTerminalVisibility(page: Page) {
+	const TerminalVisibilitySelector = ".bottom-panel.hidden-panel";
+	return !Boolean(await page.$(TerminalVisibilitySelector));
+}
+
+async function sendCommand(page: Page, command: string) {
+	if (!(await checkTerminalVisibility(page))) await toggleTerminalVisibility(page);
+
+	const TerminalSelector = `.terminal-spacer`;
+	await page.waitForSelector(TerminalSelector);
+	await page.realClick(TerminalSelector);
+	await page.type(TerminalSelector, command);
+
+	await page.keyboard.down("Enter");
+	return true;
+}
+
+async function toggleTerminalVisibility(page: Page) {
+	const ToggleTerminalVisibilityButtonSelector = `visibility-toggle[spotlightid=toggle-terminal]`;
+
+	await page.waitForSelector(ToggleTerminalVisibilityButtonSelector, { timeout: 0 });
+	await page.realClick(ToggleTerminalVisibilityButtonSelector);
+	return true;
 }
 
 main();
