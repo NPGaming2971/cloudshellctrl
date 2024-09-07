@@ -39,5 +39,5 @@
 		"exactOptionalPropertyTypes": false,
 		"noImplicitOverride": true
 	},
-	"include": ["index.ts", "utils.ts", "typings.d.ts"]
+	"include": ["index.ts", "utils.ts"]
 }

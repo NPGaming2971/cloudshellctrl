@@ -1,4 +1,4 @@
-import { connect, type Page } from "puppeteer-real-browser";
+import { connect, type PageWithCursor as Page } from "puppeteer-real-browser";
 import PuppeteerStealthPlugin from "puppeteer-extra-plugin-stealth";
 import { getIsolatedBrowserPath } from "./utils.js";
 import { ChromeFlags, UserAgent } from "./constants.js";
@@ -13,7 +13,7 @@ async function main() {
 			chromePath: browserPath,
 		},
 		connectOption: {
-			ignoreHTTPSErrors: true,
+			acceptInsecureCerts: true,
 		},
 		plugins: [PuppeteerStealthPlugin()],
 	});
