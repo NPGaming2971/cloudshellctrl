@@ -22,22 +22,23 @@ async function main() {
 	await page.goto("https://shell.cloud.google.com", { waitUntil: "domcontentloaded" });
 }
 
-async function loginToGoogle(page: Page, email: string, password: string) {
+main();
+
+export async function loginToGoogle(page: Page, email: string, password: string) {
 	const EmailInputSelector = 'input[type="email"]';
 	const EmailNextSelector = "#identifierNext";
 	const PasswordInputSelector = `input[type="password"]`;
 	const PasswordNextSelector = "#passwordNext";
 
 	await page.waitForSelector(EmailInputSelector);
-	await page.realClick(EmailInputSelector);
-	await page.locator(EmailInputSelector).fill(email);
+	await page.type(EmailInputSelector, email);
 
 	await page.waitForSelector(EmailNextSelector);
-	await page.realClick(EmailNextSelector);
+	await page.click(EmailNextSelector);
 
 	await page.waitForSelector(PasswordInputSelector);
 	await page.realClick(PasswordInputSelector);
-	await page.locator(PasswordInputSelector).fill(password);
+	await page.type(PasswordInputSelector, password);
 
 	await page.waitForSelector(PasswordNextSelector);
 	await page.realClick(PasswordNextSelector);
@@ -48,24 +49,52 @@ async function loginToGoogle(page: Page, email: string, password: string) {
 /**
  * Return true if the terminal is visible, false otherwise.
  */
-async function checkTerminalVisibility(page: Page) {
+export async function checkTerminalVisibility(page: Page) {
 	const TerminalVisibilitySelector = ".bottom-panel.hidden-panel";
 	return !Boolean(await page.$(TerminalVisibilitySelector));
 }
 
-async function sendCommand(page: Page, command: string) {
+/**
+ * Send a command to the terminal.
+ */
+export async function sendCommand(page: Page, command: string) {
 	if (!(await checkTerminalVisibility(page))) await toggleTerminalVisibility(page);
 
 	const TerminalSelector = `.terminal-spacer`;
 	await page.waitForSelector(TerminalSelector);
 	await page.realClick(TerminalSelector);
-	await page.type(TerminalSelector, command);
+	await page.keyboard.type(command);
+
+	await page.evaluate(() => {
+		const target = document.querySelector(".xterm-rows")!;
+		const fn = () => {
+			console.log("disconnected");
+			observer.disconnect();
+		};
+		let timeout = window.setTimeout(fn, 3000);
+		const observer = new MutationObserver((mutations) => {
+			console.log("mutation");
+			for (const mutation of mutations) {
+				console.log([...mutation.addedNodes.values()].map((i) => i.textContent).join(""));
+			}
+			clearTimeout(timeout);
+			timeout = window.setTimeout(fn, 3000);
+		});
+
+		observer.observe(target, { childList: true, subtree: true });
+		return true;
+	});
 
 	await page.keyboard.down("Enter");
 	return true;
 }
 
-async function toggleTerminalVisibility(page: Page) {
+/**
+ * Toggle terminal visibility. Some functions need the terminal to be visible to work.
+ * @param page
+ * @returns
+ */
+export async function toggleTerminalVisibility(page: Page) {
 	const ToggleTerminalVisibilityButtonSelector = `visibility-toggle[spotlightid=toggle-terminal]`;
 
 	await page.waitForSelector(ToggleTerminalVisibilityButtonSelector, { timeout: 0 });
@@ -73,4 +102,15 @@ async function toggleTerminalVisibility(page: Page) {
 	return true;
 }
 
-main();
+/**
+ * Toggle terminal visibility. Some functions need the terminal to be visible to work.
+ * @param page
+ * @returns
+ */
+export async function toggleEditorVisibility(page: Page) {
+	const ToggleEditorVisibilityButtonSelector = `visibility-toggle[spotlightid=toggle-editor]`;
+
+	await page.waitForSelector(ToggleEditorVisibilityButtonSelector, { timeout: 0 });
+	await page.realClick(ToggleEditorVisibilityButtonSelector);
+	return true;
+}
