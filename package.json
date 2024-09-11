@@ -1,9 +1,22 @@
 {
+	"name": "cloudshellctrl",
+	"version": "1.0.0",
+	"main": "dist/index.js",
 	"dependencies": {
 		"@puppeteer/browsers": "^2.4.0",
 		"puppeteer-extra": "^3.3.6",
 		"puppeteer-extra-plugin-stealth": "^2.11.2",
 		"puppeteer-real-browser": "^1.3.9"
 	},
-	"type": "module"
+	"exports": {
+		"import": "./dist/index.js",
+		"types": "./dist/typings.d.ts"
+	},
+	"type": "module",
+	"scripts": {
+		"build": "tsc"
+	},
+	"imports": {
+		"#lib/*": "./dist/*"
+	}
 }
