@@ -26,7 +26,7 @@ export const ChromeFlags = [
 	"--renderer-process-limit=1",
 	"--force-low-memory-device",
 	"--force-device-scale-factor=1",
-	//"--disable-gpu-program-cache",
+	"--disable-gpu-program-cache",
 	"--disk-cache-size=0",
 	//"--force-gpu-mem-available-mb=0",
 	"--deny-permission-prompts",

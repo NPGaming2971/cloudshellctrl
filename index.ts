@@ -3,9 +3,9 @@ import PuppeteerStealthPlugin from "puppeteer-extra-plugin-stealth";
 import { getIsolatedBrowserPath } from "./utils.js";
 import { ChromeFlags, UserAgent } from "./constants.js";
 
-async function main() {
+export async function init() {
 	const browserPath = await getIsolatedBrowserPath();
-	const { page } = await connect({
+	const result = await connect({
 		headless: false,
 		args: ChromeFlags,
 		turnstile: false,
@@ -18,11 +18,20 @@ async function main() {
 		plugins: [PuppeteerStealthPlugin()],
 	});
 
-	await page.setUserAgent(UserAgent);
-	await page.goto("https://shell.cloud.google.com", { waitUntil: "domcontentloaded" });
-}
+	await result.page.setRequestInterception(true);
+	result.page.on("request", (request) => {
+		if (
+			["image" /**"stylesheet",*/, "font", "other", "media"].indexOf(request.resourceType()) !== -1
+		) {
+			request.abort();
+		} else request.continue();
+	});
 
-main();
+	await result.page.setUserAgent(UserAgent);
+	await result.page.goto("https://shell.cloud.google.com", { waitUntil: "domcontentloaded" });
+
+	return result;
+}
 
 export async function loginToGoogle(page: Page, email: string, password: string) {
 	const EmailInputSelector = 'input[type="email"]';
@@ -54,37 +63,28 @@ export async function checkTerminalVisibility(page: Page) {
 	return !Boolean(await page.$(TerminalVisibilitySelector));
 }
 
+export async function reconnectShell(page: Page) {
+	const TerminalSelector = `.terminal-spacer`;
+	const ReconnectButtonSelector = `xpath///span[normalize-space()='Reconnect']`;
+	const button = await page.$(ReconnectButtonSelector);
+
+	if (!button) return;
+	await button.click();
+	await page.waitForSelector(TerminalSelector);
+}
+
 /**
  * Send a command to the terminal.
  */
 export async function sendCommand(page: Page, command: string) {
 	if (!(await checkTerminalVisibility(page))) await toggleTerminalVisibility(page);
+	await reconnectShell(page);
 
 	const TerminalSelector = `.terminal-spacer`;
 	await page.waitForSelector(TerminalSelector);
-	await page.realClick(TerminalSelector);
+	await page.click(TerminalSelector);
+
 	await page.keyboard.type(command);
-
-	await page.evaluate(() => {
-		const target = document.querySelector(".xterm-rows")!;
-		const fn = () => {
-			console.log("disconnected");
-			observer.disconnect();
-		};
-		let timeout = window.setTimeout(fn, 3000);
-		const observer = new MutationObserver((mutations) => {
-			console.log("mutation");
-			for (const mutation of mutations) {
-				console.log([...mutation.addedNodes.values()].map((i) => i.textContent).join(""));
-			}
-			clearTimeout(timeout);
-			timeout = window.setTimeout(fn, 3000);
-		});
-
-		observer.observe(target, { childList: true, subtree: true });
-		return true;
-	});
-
 	await page.keyboard.down("Enter");
 	return true;
 }
@@ -103,7 +103,7 @@ export async function toggleTerminalVisibility(page: Page) {
 }
 
 /**
- * Toggle terminal visibility. Some functions need the terminal to be visible to work.
+ * Toggle editor visibility. Some functions need the editor to be visible to work.
  * @param page
  * @returns
  */
@@ -113,4 +113,52 @@ export async function toggleEditorVisibility(page: Page) {
 	await page.waitForSelector(ToggleEditorVisibilityButtonSelector, { timeout: 0 });
 	await page.realClick(ToggleEditorVisibilityButtonSelector);
 	return true;
+}
+
+export async function newTerminal(page: Page, skipTerminalNumberCheck: boolean = false) {
+	if (!(await checkTerminalVisibility(page))) await toggleTerminalVisibility(page);
+
+	if (!skipTerminalNumberCheck) {
+		const TerminalTabSelector = `div[role=tab]`;
+		const result = await page.$$(TerminalTabSelector);
+		if (result.length >= 4) throw new RangeError("Can not create more than 4 terminal");
+	}
+
+	const CreateNewTerminalSelector = `button[spotlightid=cloud-shell-add-tab-button]`;
+
+	await page.waitForSelector(CreateNewTerminalSelector);
+	await page.click(CreateNewTerminalSelector);
+}
+
+export async function focusOnTerminalIndex(page: Page, index: number) {
+	if (!(await checkTerminalVisibility(page))) await toggleTerminalVisibility(page);
+
+	const TerminalTabIndexSelector = `xpath///div[@role='tab' and @aria-posinset=${index}]`;
+	await page.waitForSelector(TerminalTabIndexSelector);
+	await page.click(TerminalTabIndexSelector);
+}
+
+export async function closeTerminalIndex(page: Page, index: number) {
+	if (!(await checkTerminalVisibility(page))) await toggleTerminalVisibility(page);
+	const TerminalTabCloseButtonIndexSelector = `xpath///div[@role='tab' and @aria-posinset=${index}]//button[normalize-space() = 'close']`;
+
+	await page.waitForSelector(TerminalTabCloseButtonIndexSelector);
+	await page.click(TerminalTabCloseButtonIndexSelector);
+}
+
+export async function restartShell(page: Page) {
+	const MoreButtonSelector = `button[spotlightid="cloud-shell-more-button"]`;
+	const RestartButtonSelector = `xpath///button[@role='menuitem' and @tabindex=0]`;
+	const RestartConfirmButtonSelector = `xpath///span[normalize-space()='Restart']`;
+
+	await page.waitForSelector(MoreButtonSelector);
+	await page.realClick(MoreButtonSelector);
+
+	await page.waitForSelector(RestartButtonSelector);
+	await page.realClick(RestartButtonSelector);
+
+	await page.waitForSelector(RestartConfirmButtonSelector);
+	await page.realClick(RestartConfirmButtonSelector);
+
+	await page.waitForSelector(`.terminal-spacer`, { timeout: 60000 });
 }
