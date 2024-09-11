@@ -28,7 +28,7 @@ export const ChromeFlags = [
 	"--force-device-scale-factor=1",
 	"--disable-gpu-program-cache",
 	"--disk-cache-size=0",
-	//"--force-gpu-mem-available-mb=0",
+	"--force-gpu-mem-available-mb=0",
 	"--deny-permission-prompts",
 	"--hide-scrollbars",
 	"--aggressive-cache-discard",

@@ -2,11 +2,12 @@ import { connect, type PageWithCursor as Page } from "puppeteer-real-browser";
 import PuppeteerStealthPlugin from "puppeteer-extra-plugin-stealth";
 import { getIsolatedBrowserPath } from "./utils.js";
 import { ChromeFlags, UserAgent } from "./constants.js";
+import { type SendCommandOptions } from "./typings.js";
 
 export async function init() {
 	const browserPath = await getIsolatedBrowserPath();
 	const result = await connect({
-		headless: false,
+		headless: true,
 		args: ChromeFlags,
 		turnstile: false,
 		customConfig: {
@@ -20,9 +21,7 @@ export async function init() {
 
 	await result.page.setRequestInterception(true);
 	result.page.on("request", (request) => {
-		if (
-			["image" /**"stylesheet",*/, "font", "other", "media"].indexOf(request.resourceType()) !== -1
-		) {
+		if (["image", "stylesheet", "font", "other", "media"].indexOf(request.resourceType()) !== -1) {
 			request.abort();
 		} else request.continue();
 	});
@@ -63,9 +62,16 @@ export async function checkTerminalVisibility(page: Page) {
 	return !Boolean(await page.$(TerminalVisibilitySelector));
 }
 
-export async function reconnectShell(page: Page) {
+export async function reconnectShell(page: Page, options: SendCommandOptions = {}) {
 	const TerminalSelector = `.terminal-spacer`;
 	const ReconnectButtonSelector = `xpath///span[normalize-space()='Reconnect']`;
+
+	if (!(await checkTerminalVisibility(page))) await toggleTerminalVisibility(page);
+	const { terminalIndex } = options;
+	if (terminalIndex) {
+		await focusOnTerminalIndex(page, terminalIndex);
+	}
+
 	const button = await page.$(ReconnectButtonSelector);
 
 	if (!button) return;
@@ -76,8 +82,13 @@ export async function reconnectShell(page: Page) {
 /**
  * Send a command to the terminal.
  */
-export async function sendCommand(page: Page, command: string) {
+export async function sendCommand(page: Page, command: string, options: SendCommandOptions = {}) {
+	const { terminalIndex } = options;
+
 	if (!(await checkTerminalVisibility(page))) await toggleTerminalVisibility(page);
+	if (terminalIndex) {
+		await focusOnTerminalIndex(page, terminalIndex);
+	}
 	await reconnectShell(page);
 
 	const TerminalSelector = `.terminal-spacer`;
