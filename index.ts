@@ -3,8 +3,12 @@ import PuppeteerStealthPlugin from "puppeteer-extra-plugin-stealth";
 import { getIsolatedBrowserPath } from "./utils.js";
 import { ChromeFlags, UserAgent } from "./constants.js";
 import { type SendCommandOptions } from "./typings.js";
+import type { Cookie } from "puppeteer-core-patch";
 
-export async function init() {
+type InitOptions = {
+	cookies?: Cookie[];
+};
+export async function init(options: InitOptions = {}) {
 	const browserPath = await getIsolatedBrowserPath();
 	const result = await connect({
 		headless: true,
@@ -18,16 +22,19 @@ export async function init() {
 		},
 		plugins: [PuppeteerStealthPlugin()],
 	});
+	const { page } = result;
+	const { cookies } = options;
 
-	await result.page.setRequestInterception(true);
-	result.page.on("request", (request) => {
+	await page.setRequestInterception(true);
+	page.on("request", (request) => {
 		if (["image", "stylesheet", "font", "other", "media"].indexOf(request.resourceType()) !== -1) {
 			request.abort();
 		} else request.continue();
 	});
 
-	await result.page.setUserAgent(UserAgent);
-	await result.page.goto("https://shell.cloud.google.com", { waitUntil: "domcontentloaded" });
+	await page.setUserAgent(UserAgent);
+	if (cookies) page.setCookie(...cookies);
+	await page.goto("https://shell.cloud.google.com", { waitUntil: "domcontentloaded" });
 
 	return result;
 }
