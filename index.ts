@@ -33,10 +33,21 @@ export async function init(options: InitOptions = {}) {
 	});
 
 	await page.setUserAgent(UserAgent);
-	if (cookies) page.setCookie(...cookies);
+	if (cookies) await page.setCookie(...cookies);
+
 	await page.goto("https://shell.cloud.google.com", { waitUntil: "domcontentloaded" });
+	if (cookies) {
+		await closeAuthDialog(page);
+	}
 
 	return result;
+}
+
+async function closeAuthDialog(page: Page) {
+	const AuthDialogCloseButtonSelector = `xpath///span[normalize-space() = 'Close']`;
+
+	await page.waitForSelector(AuthDialogCloseButtonSelector);
+	await page.click(AuthDialogCloseButtonSelector);
 }
 
 export async function loginToGoogle(page: Page, email: string, password: string) {
