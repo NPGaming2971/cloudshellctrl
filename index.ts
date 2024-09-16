@@ -1,21 +1,20 @@
 import { connect, type PageWithCursor as Page } from "puppeteer-real-browser";
 import PuppeteerStealthPlugin from "puppeteer-extra-plugin-stealth";
-import { getIsolatedBrowserPath } from "./utils.js";
 import { ChromeFlags, UserAgent } from "./constants.js";
 import { type SendCommandOptions } from "./typings.js";
 import type { Cookie } from "puppeteer-core-patch";
+import { getIsolatedBrowserPath } from "./utils.js";
 
 type InitOptions = {
 	cookies?: Cookie[];
 };
 export async function init(options: InitOptions = {}) {
-	const browserPath = await getIsolatedBrowserPath();
 	const result = await connect({
-		headless: true,
+		headless: false,
 		args: ChromeFlags,
 		turnstile: false,
 		customConfig: {
-			chromePath: browserPath,
+			chromePath: await getIsolatedBrowserPath(),
 		},
 		connectOption: {
 			acceptInsecureCerts: true,
@@ -27,16 +26,18 @@ export async function init(options: InitOptions = {}) {
 
 	await page.setRequestInterception(true);
 	page.on("request", (request) => {
-		if (["image", "stylesheet", "font", "other", "media"].indexOf(request.resourceType()) !== -1) {
+		if (
+			["image", /**"stylesheet"*/ "font", "other", "media"].indexOf(request.resourceType()) !== -1
+		) {
 			request.abort();
 		} else request.continue();
 	});
 
 	await page.setUserAgent(UserAgent);
-	if (cookies) await page.setCookie(...cookies);
+	if (cookies?.length) await page.setCookie(...cookies);
 
 	await page.goto("https://shell.cloud.google.com", { waitUntil: "domcontentloaded" });
-	if (cookies) {
+	if (cookies?.length) {
 		await closeAuthDialog(page);
 	}
 
@@ -175,7 +176,7 @@ export async function closeTerminalIndex(page: Page, index: number) {
 	await page.click(TerminalTabCloseButtonIndexSelector);
 }
 
-export async function restartShell(page: Page) {
+export async function restartShell(page: Page, waitUntilReady: boolean = true) {
 	const MoreButtonSelector = `button[spotlightid="cloud-shell-more-button"]`;
 	const RestartButtonSelector = `xpath///button[@role='menuitem' and @tabindex=0]`;
 	const RestartConfirmButtonSelector = `xpath///span[normalize-space()='Restart']`;
@@ -189,5 +190,5 @@ export async function restartShell(page: Page) {
 	await page.waitForSelector(RestartConfirmButtonSelector);
 	await page.realClick(RestartConfirmButtonSelector);
 
-	await page.waitForSelector(`.terminal-spacer`, { timeout: 60000 });
+	if (waitUntilReady) await page.waitForSelector(`.terminal-spacer`, { timeout: 60000 });
 }
